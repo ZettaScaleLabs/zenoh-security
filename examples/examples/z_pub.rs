@@ -50,7 +50,7 @@ async fn main() {
 
 #[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
 struct Args {
-    #[arg(short, long, default_value = "demo/example/zenoh-rs-pub")]
+    #[arg(short, long, default_value = "test/thr")]
     /// The key expression to write to.
     key: KeyExpr<'static>,
     #[arg(short, long, default_value = "Pub from Rust!")]

@@ -108,7 +108,6 @@
   //        // key_expression
   //      ],
   //  },
-
   //  /// The downsampling declaration.
   //  downsampling: [
   //    {
@@ -122,7 +121,6 @@
   //      ],
   //    },
   //  ],
-
   /// Configure internal transport parameters
   transport: {
     unicast: {
@@ -279,74 +277,22 @@
       enabled: true,
       default_deny: true,
       policy_list: {
-        "policy_definition": "UserId",
+        "policy_definition": "NetworkInterface",
         "ruleset": [
           {
-            "attribute": "UserId",
+            "attribute": "NetworkInterface",
             "rules": [
               {
-                "sub": "aaa3b411006ad57868988f9fec672a31",
+                "subject": "wifi0",
                 "ke": "test/thr",
-                "action": "Write",
-                "permission": true
+                "action": "Pub",
+                "permission": "Allow"
               },
               {
-                "sub": "bbb3b411006ad57868988f9fec672a31",
+                "subject": "wifi0",
                 "ke": "test/thr",
-                "action": "Read",
-                "permission": true
-              },
-              {
-                "sub": "bbb3b411006ad57868988f9fec672a31",
-                "ke": "test/thr",
-                "action": "Read",
-                "permission": true
-              },
-              {
-                "sub": "aaabbb11006ad57868988f9fec672a31",
-                "ke": "test/thr",
-                "action": "Read",
-                "permission": true
-              },
-              {
-                "sub": "aaabbb11006ad57868988f9fec672a31",
-                "ke": "test/thr",
-                "action": "Write",
-                "permission": true
-              }
-            ]
-          },
-          {
-            "attribute": "NetworkType",
-            "rules": [
-              {
-                "sub": "wlan0",
-                "ke": "test/thr",
-                "action": "Write",
-                "permission": true
-              },
-              {
-                "sub": "wlan0",
-                "ke": "test/thr",
-                "action": "Read",
-                "permission": true
-              }
-            ]
-          },
-          {
-            "attribute": "user_defined_attribute",
-            "rules": [
-              {
-                "sub": "value_1",
-                "ke": "test/thr",
-                "action": "Write",
-                "permission": true
-              },
-              {
-                "sub": "value_2",
-                "ke": "test/thr",
-                "action": "Read",
-                "permission": true
+                "action": "Sub",
+                "permission": "Allow"
               }
             ]
           }

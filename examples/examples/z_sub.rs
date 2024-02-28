@@ -63,7 +63,7 @@ async fn main() {
 
 #[derive(clap::Parser, Clone, PartialEq, Eq, Hash, Debug)]
 struct SubArgs {
-    #[arg(short, long, default_value = "demo/example/**")]
+    #[arg(short, long, default_value = "test/thr")]
     /// The Key Expression to subscribe to.
     key: KeyExpr<'static>,
     #[command(flatten)]

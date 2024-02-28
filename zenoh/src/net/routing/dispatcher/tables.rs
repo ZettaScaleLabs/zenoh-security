@@ -102,7 +102,7 @@ impl Tables {
             faces: HashMap::new(),
             mcast_groups: vec![],
             mcast_faces: vec![],
-            interceptors: interceptor_factories(config)?,
+            interceptors: interceptor_factories(config),
             pull_caches_lock: Mutex::new(()),
             hat: hat_code.new_tables(router_peers_failover_brokering),
             hat_code: hat_code.into(),

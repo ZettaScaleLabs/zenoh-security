@@ -10,11 +10,19 @@ use zenoh_transport::{multicast::TransportMulticast, unicast::TransportUnicast};
 use crate::net::routing::RoutingContext;
 
 use super::{
-    authz::{Action, Attribute, PolicyEnforcer, RequestInfo},
+    authz::{Action, NewPolicyEnforcer, Subject},
     EgressInterceptor, IngressInterceptor, InterceptorFactoryTrait, InterceptorTrait,
 };
 pub(crate) struct AclEnforcer {
-    pub(crate) e: Arc<PolicyEnforcer>,
+    pub(crate) e: Arc<NewPolicyEnforcer>,
+}
+struct EgressAclEnforcer {
+    pe: Arc<NewPolicyEnforcer>,
+    subject: i32,
+}
+struct IngressAclEnforcer {
+    pe: Arc<NewPolicyEnforcer>,
+    subject: i32,
 }
 
 impl InterceptorFactoryTrait for AclEnforcer {
@@ -23,14 +31,24 @@ impl InterceptorFactoryTrait for AclEnforcer {
         transport: &TransportUnicast,
     ) -> (Option<IngressInterceptor>, Option<EgressInterceptor>) {
         let uid = transport.get_zid().unwrap();
+        let interface_key = Subject::NetworkInterface("wifi0".to_string());
+
+        //get value from the subject_map
+        let e = self.e.clone();
+        let mut interface_value = 0;
+        if let Some(sm) = &e.subject_map {
+            interface_value = *sm.get(&interface_key).unwrap();
+        }
+
+        let pe = self.e.clone();
         (
             Some(Box::new(IngressAclEnforcer {
-                e: self.e.clone(),
-                zid: uid,
+                pe: pe.clone(),
+                subject: interface_value,
             })),
             Some(Box::new(EgressAclEnforcer {
-                zid: uid,
-                e: self.e.clone(),
+                pe: pe.clone(),
+                subject: interface_value,
             })),
         )
     }
@@ -39,25 +57,12 @@ impl InterceptorFactoryTrait for AclEnforcer {
         &self,
         _transport: &TransportMulticast,
     ) -> Option<EgressInterceptor> {
-        let e = &self.e;
-        Some(Box::new(EgressAclEnforcer {
-            e: e.clone(),
-            zid: ZenohId::default(),
-        }))
+        None
     }
 
     fn new_peer_multicast(&self, _transport: &TransportMulticast) -> Option<IngressInterceptor> {
-        let e = &self.e;
-        Some(Box::new(IngressAclEnforcer {
-            e: e.clone(),
-            zid: ZenohId::default(),
-        }))
+        None
     }
-}
-
-struct IngressAclEnforcer {
-    e: Arc<PolicyEnforcer>,
-    zid: ZenohId,
 }
 
 impl InterceptorTrait for IngressAclEnforcer {
@@ -65,30 +70,20 @@ impl InterceptorTrait for IngressAclEnforcer {
         &self,
         ctx: RoutingContext<NetworkMessage>,
     ) -> Option<RoutingContext<NetworkMessage>> {
+        //intercept msg and send it to PEP
         if let NetworkBody::Push(Push {
             payload: PushBody::Put(_),
             ..
         }) = &ctx.msg.body
         {
-            let e = &self.e;
-            let ke = ctx.full_expr().unwrap();
-            let network_type = "wlan0";  //for testing
-            let mut sub_info: Vec<Attribute> = Vec::new();
-            let attribute_list = e.get_attribute_list().unwrap();
-            for i in attribute_list {
-                match i.as_str() {
-                    "UserId" => sub_info.push(Attribute::UserId(self.zid)),
-                    "NetworkType" => sub_info.push(Attribute::NetworkType(network_type.to_owned())),
-                    _ => { //other metadata values
-                    }
-                }
-            }
-            let request_info = RequestInfo {
-                sub: sub_info,
-                ke: ke.to_string(),
-                action: Action::Write,
-            };
-            match e.policy_enforcement_point(request_info) {
+            let kexpr = ctx.full_expr().unwrap(); //add the cache here
+
+            let subject = self.subject;
+
+            match self
+                .pe
+                .policy_decision_point(subject, Action::Pub, kexpr.to_string())
+            {
                 Ok(decision) => {
                     if !decision {
                         return None;
@@ -102,40 +97,24 @@ impl InterceptorTrait for IngressAclEnforcer {
     }
 }
 
-struct EgressAclEnforcer {
-    e: Arc<PolicyEnforcer>,
-    zid: ZenohId,
-}
-
 impl InterceptorTrait for EgressAclEnforcer {
     fn intercept(
         &self,
         ctx: RoutingContext<NetworkMessage>,
     ) -> Option<RoutingContext<NetworkMessage>> {
+        //  intercept msg and send it to PEP
         if let NetworkBody::Push(Push {
             payload: PushBody::Put(_),
             ..
         }) = &ctx.msg.body
         {
-            let e = &self.e;
-            let ke = ctx.full_expr().unwrap();
-            let network_type = "wlan0"; //for testing
-            let mut sub_info: Vec<Attribute> = Vec::new();
-            let attribute_list = e.get_attribute_list().unwrap();
-            for i in attribute_list {
-                match i.as_str() {
-                    "UserId" => sub_info.push(Attribute::UserId(self.zid)),
-                    "NetworkType" => sub_info.push(Attribute::NetworkType(network_type.to_owned())),
-                    _ => { //other metadata values,
-                    }
-                }
-            }
-            let request_info = RequestInfo {
-                sub: sub_info,
-                ke: ke.to_string(),
-                action: Action::Read,
-            };
-            match e.policy_enforcement_point(request_info) {
+            let kexpr = ctx.full_expr().unwrap(); //add the cache here
+
+            let subject = self.subject;
+            match self
+                .pe
+                .policy_decision_point(subject, Action::Sub, kexpr.to_string())
+            {
                 Ok(decision) => {
                     if !decision {
                         return None;
